@@ -14,13 +14,17 @@ const studentRoutes = require("./routes/studentRoutes");
 const app = express()
 
 // 1. CORS HARUS PALING ATAS agar gambar tidak diblokir browser
+// Izinkan Frontend Vercel Bapak untuk mengakses Backend ini
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000", 
+      "https://projek-skripsi-tata.vercel.app" // Tambahkan link frontend Vercel Bapak di sini
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"]
   })
-)
+);
 
 app.use(express.json())
 app.use(cookieParser())
