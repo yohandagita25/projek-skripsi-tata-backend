@@ -8,6 +8,4 @@ const pool = new Pool({
   }
 });
 
-// Tidak perlu pool.connect() manual di sini untuk Vercel
-// Cukup ekspor pool-nya saja
 module.exports = pool;
