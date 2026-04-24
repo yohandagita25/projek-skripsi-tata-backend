@@ -13,6 +13,18 @@ const studentRoutes = require("./routes/studentRoutes");
 
 const app = express()
 
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://projek-skripsi-tata.vercel.app");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200); // Langsung jawab OK untuk cek ombak browser
+  }
+  next();
+});
+
 // 1. CORS HARUS PALING ATAS agar gambar tidak diblokir browser
 // Izinkan Frontend Vercel Bapak untuk mengakses Backend ini
 app.use(
