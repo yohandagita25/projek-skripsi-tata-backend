@@ -22,7 +22,7 @@ app.use(
       "https://projek-skripsi-tata.vercel.app" // Tambahkan link frontend Vercel Bapak di sini
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
   })
 );
 

@@ -80,9 +80,9 @@ exports.login = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false, // Set ke true jika menggunakan HTTPS
-      maxAge: 3600000
+      secure: true,      // WAJIB true karena Vercel pakai HTTPS
+      sameSite: "none",  // WAJIB "none" agar cookie bisa dikirim lintas domain (frontend ke backend)
+      maxAge: 24 * 60 * 60 * 1000, // 1 hari
     });
 
     res.json({

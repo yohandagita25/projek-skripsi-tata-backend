@@ -1,39 +1,36 @@
 const jwt = require('jsonwebtoken');
-const pool = require("../config/db"); // Pastikan import pool database Anda
+const pool = require("../config/db");
 
 const authenticateToken = (req, res, next) => {
-  // 1. Cek token di Cookie (untuk Web) ATAU Header Authorization (untuk Postman/Mobile)
-  let token = req.cookies?.token;
+  // 1. Ambil token (Utamakan cookie untuk web)
+  const token = req.cookies?.token || req.headers['authorization']?.split(' ')[1];
 
-  if (!token && req.headers['authorization']) {
-    const authHeader = req.headers['authorization'];
-    token = authHeader.split(' ')[1]; // Mengambil string setelah 'Bearer '
-  }
-
-  // 2. Jika tidak ada token sama sekali
   if (!token) {
-    return res.status(401).json({ error: "Akses ditolak. Token tidak ditemukan." });
+    console.log("Middleware: No token found");
+    return res.status(401).json({ error: "Akses ditolak. Silakan login kembali." });
   }
 
-  // 3. Verifikasi Token
   try {
+    // 2. Verifikasi Token
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     req.user = verified;
 
-    // --- LOGIKA TRACKING ACTIVITY (START) ---
-    // Update waktu aktivitas terakhir secara background. 
-    // Kita tidak gunakan 'await' agar response API tetap cepat (non-blocking).
-    if (req.user && req.user.id) {
+    // 3. Tracking Activity (Background Task)
+    // Pastikan tabel 'user_sessions' sudah ada di Railway Bapak!
+    if (req.user?.id) {
       pool.query(
         "UPDATE user_sessions SET last_active_at = NOW() WHERE user_id = $1 AND is_processed = FALSE",
         [req.user.id]
-      ).catch(err => console.error("Tracking Activity Error:", err.message));
+      ).catch(err => {
+        // Kita log saja, jangan hentikan proses login hanya karena gagal update session
+        console.error("Tracking Activity Skip:", err.message);
+      });
     }
-    // --- LOGIKA TRACKING ACTIVITY (END) ---
 
     next();
   } catch (err) {
-    return res.status(403).json({ error: "Sesi kadaluarsa atau token tidak valid." });
+    console.error("JWT Verify Error:", err.message);
+    return res.status(403).json({ error: "Sesi tidak valid." });
   }
 };
 
