@@ -99,8 +99,8 @@ exports.login = async (req, res) => {
 exports.logout = (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false
+    sameSite: "none", // Samakan dengan login
+    secure: true      // Samakan dengan login
   });
   res.json({ message: "Logout success" });
 };

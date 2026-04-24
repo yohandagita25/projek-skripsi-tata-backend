@@ -19,7 +19,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000", 
-      "https://projek-skripsi-tata.vercel.app" // Tambahkan link frontend Vercel Bapak di sini
+      "https://projek-skripsi-tata.vercel.app"
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
