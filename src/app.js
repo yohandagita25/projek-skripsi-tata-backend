@@ -13,40 +13,30 @@ const studentRoutes = require("./routes/studentRoutes");
 
 const app = express()
 
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://projek-skripsi-tata.vercel.app");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200); // Langsung jawab OK untuk cek ombak browser
-  }
-  next();
-});
-
-// 1. CORS HARUS PALING ATAS agar gambar tidak diblokir browser
-// Izinkan Frontend Vercel Bapak untuk mengakses Backend ini
+// ✅ 1. Cukup Gunakan Library CORS saja (Hapus yang manual tadi)
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://projek-skripsi-tata.vercel.app"], // ✅ Pastikan TIDAK ada "/" di akhir
-    credentials: true, // ✅ WAJIB agar cookie bisa masuk
+    origin: "https://projek-skripsi-tata.vercel.app", // Fokus ke link Vercel Bapak
+    credentials: true, 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
+// ✅ 2. Tambahkan ini agar Railway merespon cepat saat browser melakukan cek 'Preflight'
+app.options("*", cors());
+
 app.use(express.json())
 app.use(cookieParser())
 
-// 2. Akses statis folder uploads
+// Akses statis folder uploads
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (req,res)=>{
   res.send("Backend Semantic Wave Running")
 })
 
-// 3. Rute API
+// Rute API
 app.use("/api/auth", authRoutes)
 app.use("/api/courses", courseRoutes)
 app.use("/api/modules", moduleRoutes)
