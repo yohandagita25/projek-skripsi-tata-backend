@@ -29,12 +29,10 @@ app.use((req, res, next) => {
 // Izinkan Frontend Vercel Bapak untuk mengakses Backend ini
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000", 
-      "https://projek-skripsi-tata.vercel.app"
-    ],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    origin: ["http://localhost:3000", "https://projek-skripsi-tata.vercel.app"], // ✅ Pastikan TIDAK ada "/" di akhir
+    credentials: true, // ✅ WAJIB agar cookie bisa masuk
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
