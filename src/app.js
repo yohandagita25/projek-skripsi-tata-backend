@@ -23,9 +23,6 @@ app.use(
   })
 );
 
-// ✅ 2. Tambahkan ini agar Railway merespon cepat saat browser melakukan cek 'Preflight'
-app.options("*", cors());
-
 app.use(express.json())
 app.use(cookieParser())
 
