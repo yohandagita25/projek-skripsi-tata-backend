@@ -16,7 +16,7 @@ const app = express()
 // ✅ 1. Cukup Gunakan Library CORS saja (Hapus yang manual tadi)
 app.use(
   cors({
-    origin: "https://projek-skripsi-tata.vercel.app", // Fokus ke link Vercel Bapak
+    origin: "https://projek-skripsi-tata.vercel.app",
     credentials: true, 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
