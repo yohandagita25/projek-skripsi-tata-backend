@@ -142,7 +142,6 @@ exports.me = async (req, res) => {
 
   } catch (err) {
     console.error("Auth Me Error:", err.message);
-    // Jika token kadaluarsa atau salah, hapus cookie di browser agar tidak nyangkut
     res.clearCookie("token", { httpOnly: true, sameSite: "none", secure: true });
     res.status(401).json({ message: "Invalid token" });
   }
