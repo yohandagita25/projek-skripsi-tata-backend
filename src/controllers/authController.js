@@ -75,7 +75,7 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "1d" }
     );
 
     res.cookie("token", token, {
@@ -88,7 +88,8 @@ exports.login = async (req, res) => {
 
     res.json({
       message: "Login success",
-      role: user.role
+      role: user.role,
+      token: token
     });
 
   } catch (err) {
