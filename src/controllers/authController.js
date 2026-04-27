@@ -22,8 +22,6 @@ exports.register = async (req, res) => {
   }
 };
 
-// ... kode register tetap ...
-
 exports.login = async (req, res) => {
   try {
       const { email, password } = req.body;
@@ -49,11 +47,11 @@ exports.login = async (req, res) => {
           maxAge: 24 * 60 * 60 * 1000
       });
 
-      // Kirimkan role DAN token di JSON respon
+      // Kirimkan role DAN token di JSON respon agar bisa disimpan di localStorage frontend
       res.json({
           message: "Login success",
           role: user.role,
-          token: token // Penting untuk localStorage di frontend
+          token: token 
       });
 
   } catch (err) {
@@ -74,24 +72,21 @@ exports.logout = (req, res) => {
 
 exports.me = async (req, res) => {
   try {
-    // 1. Ambil token dari cookie-parser (Pastikan app.use(cookieParser()) sudah ada di app.js)
-    let token = req.cookies.token;
+    // 1. Jalur Utama: Cek token dari Cookie
+    let token = req.cookies?.token;
 
-    // 2. Backup: Jika cookie-parser gagal, ambil manual dari headers
-    if (!token && req.headers.cookie) {
-      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        acc[name] = value;
-        return acc;
-      }, {});
-      token = cookies['token'];
+    // 2. Jalur Cadangan: Jika cookie kosong, cek Header Authorization (Bearer Token)
+    // Ini solusi agar dashboard tetap terbuka meski cookie diblokir browser
+    const authHeader = req.headers['authorization'];
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
     }
 
     if (!token) {
       return res.status(401).json({ message: "Unauthorized: No Token" });
     }
 
-    // 3. Verifikasi
+    // 3. Verifikasi Token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const result = await pool.query(
@@ -107,7 +102,6 @@ exports.me = async (req, res) => {
 
   } catch (err) {
     console.error("Auth Me Error:", err.message);
-    res.clearCookie("token", { httpOnly: true, sameSite: "none", secure: true });
     res.status(401).json({ message: "Invalid token" });
   }
 };

@@ -167,7 +167,7 @@ exports.deleteAssignment = async (req, res) => {
 
 // 9. REKAP NILAI TEST (DINAMIS: PRETEST & POSTTEST)
 exports.getTestResults = async (req, res) => {
-  const { courseId, testType } = req.params; // testType diambil dari rute :testType
+  const { courseId, testType } = req.params;
   try {
     const query = `
       SELECT 

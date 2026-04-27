@@ -22,14 +22,14 @@ exports.getCourseDetail = async (req, res) => {
   }
 };
 
-// 3. Ambil Course lengkap dengan Modul & Materi (DIREVISI)
+// 3. Ambil Course lengkap dengan Modul & Materi
 exports.getFullCourses = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT c.id AS course_id, c.title AS course_title, c.instructor, c.thumbnail, c.description,
              m.id AS module_id, m.title AS module_title, m.module_order,
              t.id AS materi_id, t.title AS materi_title, t.content, t.video_url, t.type, t.order_number,
-             t.has_reflection, t.reflection_question, -- 🌟 KOLOM BARU DITAMBAHKAN DI SINI
+             t.has_reflection, t.reflection_question,
              a.id AS assignment_id, a.instruction AS assignment_instruction, a.type AS assignment_type
       FROM courses c
       LEFT JOIN modules m ON m.course_id = c.id
@@ -71,10 +71,8 @@ exports.getFullCourses = async (req, res) => {
           video_url: row.video_url || "", 
           type: row.type || "text",
           order_number: row.order_number,
-          // 🌟 MAPPING DATA REFLEKSI KE FRONTEND
           has_reflection: row.has_reflection,
           reflection_question: row.reflection_question,
-          // DATA ASSIGNMENT
           assignment: row.assignment_id ? {
             id: row.assignment_id,
             type: row.assignment_type,
@@ -124,6 +122,7 @@ exports.updateCourse = async (req, res) => {
 exports.deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
+    // Urutan delete penting untuk menjaga relasi database
     await pool.query("DELETE FROM materi WHERE module_id IN (SELECT id FROM modules WHERE course_id = $1)", [id]);
     await pool.query("DELETE FROM modules WHERE course_id = $1", [id]);
     await pool.query("DELETE FROM courses WHERE id = $1", [id]);
@@ -133,11 +132,10 @@ exports.deleteCourse = async (req, res) => {
   }
 };
 
-// Fungsi Available Courses
+// 7. Ambil course yang tersedia untuk test
 exports.getAvailableCourses = async (req, res) => {
   try {
     const { type } = req.query; 
-
     const result = await pool.query(
       `SELECT c.id, c.title FROM courses c
        WHERE c.id NOT IN (
@@ -146,7 +144,6 @@ exports.getAvailableCourses = async (req, res) => {
        ORDER BY c.id DESC`, 
       [type || 'pretest']
     );
-
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

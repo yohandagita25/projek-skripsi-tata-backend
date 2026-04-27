@@ -1,6 +1,10 @@
 const pool = require("../config/db");
 const { runCCode } = require("../services/compilerService");
 
+/**
+ * HELPER: Update Learning Streak
+ * Digunakan internal oleh controller
+ */
 const updateLearningStreak = async (userId) => {
     const today = new Date().toISOString().split('T')[0];
     
@@ -41,12 +45,6 @@ const updateLearningStreak = async (userId) => {
     }
 };
 
-/**
- * ==========================================
- * CONTROLLER METHODS
- * ==========================================
- */
-
 // 1. COMPILE & LOG PERCOBAAN
 exports.runAndLogCode = async (req, res) => {
     const { materi_id, code } = req.body;
@@ -79,7 +77,6 @@ exports.submitAssignment = async (req, res) => {
         `;
         const result = await pool.query(query, [Number(materi_id), user_id, stringifiedContent]);
         
-        // Bonus: Update streak saat mengerjakan tugas
         await updateLearningStreak(user_id);
         
         res.json({ message: "Jawaban berhasil dikirim!", data: result.rows[0] });
@@ -103,7 +100,7 @@ exports.getSubmission = async (req, res) => {
     }
 };
 
-// 4. AMBIL DATA KALENDER AKTIVITAS (Untuk Titik Hijau di Kalender)
+// 4. AMBIL DATA KALENDER AKTIVITAS
 exports.getActivityCalendar = async (req, res) => {
     try {
         const userId = req.user.id; 
@@ -127,7 +124,6 @@ exports.logMateriActivity = async (req, res) => {
     try {
         const userId = req.user.id; 
         
-        // Catat ke log harian
         const query = `
             INSERT INTO user_activities (user_id, activity_date) 
             VALUES ($1, CURRENT_DATE) 
@@ -135,7 +131,6 @@ exports.logMateriActivity = async (req, res) => {
         `;
         await pool.query(query, [userId]);
 
-        // TRIGGER UPDATE STREAK
         await updateLearningStreak(userId);
 
         res.status(200).json({ success: true, message: "Aktivitas dan Streak diperbarui" });
@@ -174,9 +169,9 @@ exports.getLearningStreak = async (req, res) => {
     }
 };
 
+// 8. AMBIL OVERALL PROGRESS
 exports.getOverallProgress = async (req, res) => {
-  const userId = req.user.id; // Diambil dari middleware authenticateToken (UUID)
-
+  const userId = req.user.id;
   try {
     const query = `
       SELECT 
@@ -213,10 +208,7 @@ exports.getOverallProgress = async (req, res) => {
       FROM courses c
       ORDER BY c.created_at DESC;
     `;
-
     const result = await pool.query(query, [userId]);
-    
-    // Kirim data ke frontend
     res.json(result.rows);
   } catch (error) {
     console.error("GET PROGRESS ERROR:", error.message);
@@ -224,9 +216,9 @@ exports.getOverallProgress = async (req, res) => {
   }
 };
 
+// 9. AMBIL CHALLENGES
 exports.getChallenges = async (req, res) => {
     const userId = req.user.id;
-  
     try {
       const query = `
         SELECT 
@@ -235,23 +227,20 @@ exports.getChallenges = async (req, res) => {
           c.thumbnail,
           t.id AS test_id,
           t.duration,
-          -- Menghitung jumlah soal dalam asesmen ini
           (SELECT COUNT(*) FROM questions q WHERE q.test_id = t.id) AS total_questions,
-          -- Mengecek apakah siswa sudah mengerjakan (untuk ikon ceklis)
           EXISTS (
             SELECT 1 FROM test_submissions ts 
             WHERE ts.test_id = t.id AND ts.user_id = $1
           ) AS is_completed
         FROM courses c
         JOIN tests t ON c.id = t.course_id
-        WHERE t.type = 'pretest' -- Hanya mengambil Asesmen Awal
+        WHERE t.type = 'pretest'
         ORDER BY c.created_at DESC;
       `;
-  
       const result = await pool.query(query, [userId]);
       res.json(result.rows);
     } catch (error) {
       console.error("GET CHALLENGES ERROR:", error.message);
       res.status(500).json({ error: "Gagal memuat data tantangan" });
     }
-  };
+};

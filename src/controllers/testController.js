@@ -116,7 +116,7 @@ exports.checkTestStatus = async (req, res) => {
   }
 };
 
-// 5. Simpan Hasil Pengerjaan (Transaksi: Submission + Detail Jawaban)
+// 5. Simpan Hasil Pengerjaan
 exports.submitTest = async (req, res) => {
   const { test_id, course_id, test_type, answers } = req.body;
   const user_id = req.user.id;
@@ -125,7 +125,6 @@ exports.submitTest = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // A. Ambil Kunci Jawaban untuk validasi skor
     const keysRes = await client.query(
       `SELECT q.id as question_id, o.option_label 
        FROM questions q
@@ -138,12 +137,11 @@ exports.submitTest = async (req, res) => {
 
     if (totalQuestions === 0) throw new Error("Soal tidak ditemukan.");
 
-    // B. Hitung Skor & Siapkan Array untuk Detail Jawaban
     let correctCount = 0;
     const detailAnswers = [];
 
     correctKeys.forEach(key => {
-      const chosen = answers[key.question_id]; // Label pilihan siswa (A, B, C, D)
+      const chosen = answers[key.question_id];
       const isCorrect = chosen === key.option_label;
       if (isCorrect) correctCount++;
       
@@ -156,7 +154,6 @@ exports.submitTest = async (req, res) => {
 
     const finalScore = Math.round((correctCount / totalQuestions) * 100);
 
-    // C. Masukkan ke test_submissions (Gunakan ON CONFLICT agar tidak double data)
     const subRes = await client.query(
       `INSERT INTO test_submissions (user_id, test_id, course_id, test_type, score, status)
        VALUES ($1, $2, $3, $4, $5, 'completed')
@@ -167,10 +164,8 @@ exports.submitTest = async (req, res) => {
     );
     const submissionId = subRes.rows[0].id;
 
-    // D. Hapus detail lama jika ada (agar tidak bentrok saat update)
     await client.query(`DELETE FROM test_submission_answers WHERE submission_id = $1`, [submissionId]);
 
-    // E. Masukkan Detail Jawaban Siswa ke tabel baru
     for (const ans of detailAnswers) {
       await client.query(
         `INSERT INTO test_submission_answers (submission_id, question_id, chosen_option_label, is_correct)
@@ -191,8 +186,7 @@ exports.submitTest = async (req, res) => {
   }
 };
 
-// 6. Ambil Soal (Siswa)
-// 6. Ambil Soal-soal Test (Pastikan ini bisa diakses Siswa)
+// 6. Ambil Soal-soal Test
 exports.getTestData = async (req, res) => {
   const { testId } = req.params;
   try {
@@ -204,7 +198,7 @@ exports.getTestData = async (req, res) => {
               'option_image', o.option_image
           ) ORDER BY o.option_label) AS options
           FROM questions q
-          LEFT JOIN options o ON q.id = o.question_id -- Gunakan LEFT JOIN agar soal tanpa opsi tidak bikin error
+          LEFT JOIN options o ON q.id = o.question_id
           WHERE q.test_id = $1
           GROUP BY q.id
       `, [testId]);
@@ -220,7 +214,7 @@ exports.getTestData = async (req, res) => {
   }
 };
 
-// 7. Review Jawaban (Menampilkan Benar/Salah per Nomor)
+// 7. Review Jawaban
 exports.getTestReview = async (req, res) => {
   const { testId } = req.params;
   const userId = req.user.id;

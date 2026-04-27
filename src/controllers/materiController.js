@@ -14,7 +14,7 @@ exports.getMateriByModule = async (req, res) => {
   }
 };
 
-// 2. Tambah Materi Baru (Update: Tambah has_reflection & reflection_question)
+// 2. Tambah Materi Baru
 exports.createMateri = async (req, res) => {
   try {
     const { 
@@ -35,7 +35,7 @@ exports.createMateri = async (req, res) => {
         video_url || "", 
         Number(order_number) || 0, 
         type || "text",
-        has_reflection || false, // Default false jika tidak dicentang
+        has_reflection || false,
         reflection_question || ""
       ]
     );
@@ -46,7 +46,7 @@ exports.createMateri = async (req, res) => {
   }
 };
 
-// 3. Update Materi (Fitur Edit) - Update: Tambah has_reflection & reflection_question
+// 3. Update Materi (Fitur Edit)
 exports.updateMateri = async (req, res) => {
   try {
     const { id } = req.params;
@@ -92,7 +92,6 @@ exports.updateMateri = async (req, res) => {
 exports.deleteMateri = async (req, res) => {
   try {
     const { id } = req.params;
-    // Otomatis menghapus tugas (assignment) terkait karena sudah ada relasi di DB
     const result = await pool.query("DELETE FROM materi WHERE id = $1", [id]);
     
     if (result.rowCount === 0) {

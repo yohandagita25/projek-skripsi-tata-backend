@@ -4,8 +4,19 @@ const router = express.Router();
 const authenticateToken = require("../middleware/authMiddleware");
 const authorizeRole = require("../middleware/roleMiddleware");
 
-// Import Controllers
-const teacherController = require("../controllers/teacherController");
+// Import Controllers (Destructuring agar lebih aman dan terbaca)
+const { 
+  getDashboardStats, 
+  getCourseProgressStats, 
+  getStudentProgress, 
+  getGradingModules, 
+  getSubmissionsByMateri, 
+  updateGrade, 
+  upsertAssignment, 
+  deleteAssignment, 
+  getTestResults 
+} = require("../controllers/teacherController");
+
 const { createCourse, getCourses, updateCourse, deleteCourse } = require("../controllers/courseController");
 const { createModule, getModulesByCourse, updateModule, deleteModule } = require("../controllers/moduleController");
 const { createMateri, getMateriByModule, updateMateri, deleteMateri } = require("../controllers/materiController");
@@ -33,21 +44,20 @@ router.put("/materi/:id", updateMateri);
 router.delete("/materi/:id", deleteMateri);
 
 // --- ASSIGNMENTS ---
-router.post("/assignments/upsert", teacherController.upsertAssignment);
-router.delete("/assignments/:materiId", teacherController.deleteAssignment);
+router.post("/assignments/upsert", upsertAssignment);
+router.delete("/assignments/:materiId", deleteAssignment);
 
 // --- DASHBOARD TEACHER ---
-router.get("/dashboard-stats", teacherController.getDashboardStats);
-router.get("/course-progress/:courseId", teacherController.getCourseProgressStats);
-router.get("/students-monitor", teacherController.getStudentProgress);
+router.get("/dashboard-stats", getDashboardStats);
+router.get("/course-progress/:courseId", getCourseProgressStats);
+router.get("/students-monitor", getStudentProgress);
 
 // --- GRADING (TUGAS) ---
-router.get("/grading/course/:courseId", teacherController.getGradingModules);
-router.get("/grading/materi/:materiId", teacherController.getSubmissionsByMateri);
-router.put("/grading/submit/:submissionId", teacherController.updateGrade);
+router.get("/grading/course/:courseId", getGradingModules);
+router.get("/grading/materi/:materiId", getSubmissionsByMateri);
+router.put("/grading/submit/:submissionId", updateGrade);
 
 // --- STUDENT RESULTS (PRETEST & POSTTEST) ---
-// ✅ Perbaikan: Menggunakan fungsi getTestResults yang dinamis
-router.get("/results/:testType/:courseId", teacherController.getTestResults);
+router.get("/results/:testType/:courseId", getTestResults);
 
 module.exports = router;
