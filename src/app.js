@@ -13,6 +13,8 @@ const studentRoutes = require("./routes/studentRoutes");
 
 const app = express()
 
+app.set("trust proxy", 1);
+
 // ✅ 1. Cukup Gunakan Library CORS saja (Hapus yang manual tadi)
 app.use(
   cors({
@@ -22,7 +24,6 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"]
   })
 );
-app.set("trust proxy", 1);
 
 app.use(express.json())
 app.use(cookieParser())

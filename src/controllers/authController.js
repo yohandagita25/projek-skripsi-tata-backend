@@ -80,9 +80,10 @@ exports.login = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,      // WAJIB true karena Vercel pakai HTTPS
-      sameSite: "none",  // WAJIB "none" agar cookie bisa dikirim lintas domain (frontend ke backend)
-      maxAge: 24 * 60 * 60 * 1000, // 1 hari
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000
     });
 
     res.json({
@@ -99,8 +100,9 @@ exports.login = async (req, res) => {
 exports.logout = (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "none", // Samakan dengan login
-    secure: true      // Samakan dengan login
+    sameSite: "none",
+    path: "/",
+    secure: true
   });
   res.json({ message: "Logout success" });
 };
