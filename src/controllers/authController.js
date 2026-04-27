@@ -107,19 +107,24 @@ exports.logout = (req, res) => {
 
 exports.me = async (req, res) => {
   try {
-    let token = req.cookies?.token;
+    // 1. Ambil token dari cookie-parser (Pastikan app.use(cookieParser()) sudah ada di app.js)
+    let token = req.cookies.token;
 
+    // 2. Backup: Jika cookie-parser gagal, ambil manual dari headers
     if (!token && req.headers.cookie) {
-      const raw = req.headers.cookie
-        .split(";")
-        .find(c => c.trim().startsWith("token="));
-      if (raw) token = raw.split("=")[1];
+      const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        acc[name] = value;
+        return acc;
+      }, {});
+      token = cookies['token'];
     }
 
     if (!token) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Unauthorized: No Token" });
     }
 
+    // 3. Verifikasi
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const result = await pool.query(
@@ -135,6 +140,8 @@ exports.me = async (req, res) => {
 
   } catch (err) {
     console.error("Auth Me Error:", err.message);
+    // Jika token kadaluarsa atau salah, hapus cookie di browser agar tidak nyangkut
+    res.clearCookie("token", { httpOnly: true, sameSite: "none", secure: true });
     res.status(401).json({ message: "Invalid token" });
   }
 };
