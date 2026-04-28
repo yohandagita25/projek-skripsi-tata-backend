@@ -193,16 +193,18 @@ exports.getOverallProgress = async (req, res) => {
          LIMIT 1) AS posttest,
 
         (SELECT json_agg(json_build_object(
-          'materi_id', m.id,
-          'materi_title', m.title,
-          'assignment_id', a.id,
-          'submission_status', ss.status,
-          'submission_score', ss.score
-         ))
-         FROM materi m
-         JOIN assignments a ON m.id = a.materi_id
-         LEFT JOIN student_submissions ss ON m.id = ss.materi_id AND ss.user_id = $1
-         WHERE m.module_id IN (SELECT id FROM modules WHERE course_id = c.id)
+        'materi_id', m.id,
+        'materi_title', m.title,
+        'module_title', mo_inner.title,
+        'assignment_id', a.id,
+        'submission_status', ss.status,
+        'submission_score', ss.score
+        ))
+        FROM materi m
+        JOIN modules mo_inner ON m.module_id = mo_inner.id -- Join ke modul
+        JOIN assignments a ON m.id = a.materi_id
+        LEFT JOIN student_submissions ss ON m.id = ss.materi_id AND ss.user_id = $1
+        WHERE m.module_id IN (SELECT id FROM modules WHERE course_id = c.id)
         ) AS assignments_progress
 
       FROM courses c
