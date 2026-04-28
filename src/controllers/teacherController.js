@@ -9,6 +9,7 @@ exports.getDashboardStats = async (req, res) => {
     const courseListRes = await pool.query("SELECT id, title FROM courses ORDER BY created_at DESC");
 
     res.json({
+      status: "success",
       totalCourses: parseInt(coursesRes.rows[0].count),
       totalStudents: parseInt(studentsRes.rows[0].count),
       totalModules: parseInt(modulesRes.rows[0].count),
@@ -36,7 +37,7 @@ exports.getCourseProgressStats = async (req, res) => {
       ORDER BY m.module_order ASC;
     `;
     const result = await pool.query(query, [courseId]);
-    res.json(result.rows);
+    res.json({ status: "success", data: result.rows });
   } catch (error) {
     res.status(500).json({ error: "Gagal mengambil data progres kursus" });
   }
@@ -62,33 +63,37 @@ exports.getStudentProgress = async (req, res) => {
       ORDER BY u.last_activity_date DESC NULLS LAST;
     `;
     const result = await pool.query(query);
-    res.json(result.rows);
+    res.json({ status: "success", data: result.rows });
   } catch (error) {
     res.status(500).json({ error: "Gagal memproses data siswa" });
   }
 };
 
 // 4. DAFTAR SUB-BAB UNTUK PENILAIAN (GRADING HUB)
+// ✅ Gabungan dari getGradingModules & getMateriGradingStatus (Pilih salah satu nama fungsi)
 exports.getGradingModules = async (req, res) => {
   const { courseId } = req.params;
   try {
-    const query = `
+    const result = await pool.query(`
       SELECT 
-        m.id, m.title, m.type,
-        COUNT(ss.id) FILTER (WHERE ss.status = 'submitted') as pending_count,
-        COUNT(ss.id) FILTER (WHERE ss.status = 'graded') as graded_count
-      FROM materi m
-      JOIN modules mo ON m.module_id = mo.id
-      JOIN assignments a ON m.id = a.materi_id
-      LEFT JOIN student_submissions ss ON m.id = ss.materi_id
-      WHERE mo.course_id = $1
-      GROUP BY m.id, m.title, m.type, m.order_number
-      ORDER BY m.order_number ASC;
-    `;
-    const result = await pool.query(query, [courseId]);
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+        t.id, 
+        t.title, 
+        t.type,
+        -- Menghitung tugas yang belum dinilai
+        (SELECT COUNT(*) FROM student_submissions ss 
+         WHERE ss.materi_id = t.id AND ss.score IS NULL) as pending_count,
+        -- Menghitung tugas yang sudah dinilai
+        (SELECT COUNT(*) FROM student_submissions ss 
+         WHERE ss.materi_id = t.id AND ss.score IS NOT NULL) as graded_count
+      FROM materi t
+      JOIN modules m ON t.module_id = m.id
+      WHERE m.course_id = $1 AND (t.type = 'code' OR t.type = 'flowchart')
+      ORDER BY m.module_order ASC, t.order_number ASC
+    `, [courseId]);
+
+    res.json({ status: "success", data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: "Gagal memuat daftar tugas" });
   }
 };
 
@@ -108,7 +113,7 @@ exports.getSubmissionsByMateri = async (req, res) => {
       ORDER BY ss.status DESC, ss.created_at ASC;
     `;
     const result = await pool.query(query, [materiId]);
-    res.json(result.rows);
+    res.json({ status: "success", data: result.rows });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -126,7 +131,7 @@ exports.updateGrade = async (req, res) => {
       RETURNING *;
     `;
     const result = await pool.query(query, [score, feedback, submissionId]);
-    res.json({ message: "Nilai berhasil diperbarui!", data: result.rows[0] });
+    res.json({ status: "success", message: "Nilai berhasil diperbarui!", data: result.rows[0] });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -148,7 +153,7 @@ exports.upsertAssignment = async (req, res) => {
         [materi_id, instruction, type, starter_code]
       );
     }
-    res.json({ message: "Assignment berhasil diperbarui" });
+    res.json({ status: "success", message: "Assignment berhasil diperbarui" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -159,13 +164,13 @@ exports.deleteAssignment = async (req, res) => {
   try {
     const { materiId } = req.params;
     await pool.query("DELETE FROM assignments WHERE materi_id = $1", [materiId]);
-    res.json({ message: "Berhasil dihapus" });
+    res.json({ status: "success", message: "Berhasil dihapus" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// 9. REKAP NILAI TEST (DINAMIS: PRETEST & POSTTEST)
+// 9. REKAP NILAI TEST (PRETEST & POSTTEST)
 exports.getTestResults = async (req, res) => {
   const { courseId, testType } = req.params;
   try {
@@ -186,9 +191,8 @@ exports.getTestResults = async (req, res) => {
       ORDER BY ts.created_at DESC;
     `;
     const result = await pool.query(query, [courseId, testType]);
-    res.json(result.rows);
+    res.json({ status: "success", data: result.rows });
   } catch (error) {
-    console.error(`ERROR FETCHING ${testType}:`, error.message);
     res.status(500).json({ error: `Gagal mengambil data nilai ${testType}` });
   }
 };
