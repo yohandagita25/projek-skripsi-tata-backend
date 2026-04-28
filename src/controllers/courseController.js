@@ -24,6 +24,8 @@ exports.getCourseDetail = async (req, res) => {
 };
 
 // 3. Ambil Course lengkap dengan Modul & Materi (JOIN SESUAI ERD)
+const pool = require("../config/db");
+
 exports.getFullCourses = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -68,26 +70,23 @@ exports.getFullCourses = async (req, res) => {
         module.materi.push({ 
           id: row.materi_id, 
           title: row.materi_title, 
-          content: row.content || "", 
-          video_url: row.video_url || "", 
-          type: row.type || "text",
-          order_number: row.order_number,
+          content: row.content, 
+          type: row.type,
           has_reflection: row.has_reflection,
           reflection_question: row.reflection_question,
-          assignment: row.assignment_id ? {
-            id: row.assignment_id,
-            type: row.assignment_type,
-            instruction: row.assignment_instruction,
-            starter_code: row.starter_code
-          } : null
+          assignment: row.assignment_id ? { id: row.assignment_id, type: row.assignment_type } : null
         });
       }
     });
 
-    // ✅ KUNCI PERBAIKAN: Kirim dalam bentuk { data: [...] }
-    res.json({ status: "success", data: Object.values(coursesMap) });
+    // ✅ SANGAT PENTING: Response harus berupa JSON, bukan halaman HTML
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({
+      status: "success",
+      data: Object.values(coursesMap)
+    });
   } catch (err) {
-    console.error("Backend Error getFullCourses:", err.message);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
