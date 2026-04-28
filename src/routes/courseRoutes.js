@@ -7,24 +7,31 @@ const {
     getCourseDetail 
 } = require("../controllers/courseController");
 
-// --- RUTE SPESIFIK (Wajib di Atas) ---
+// --- RUTE SPESIFIK ---
 
-// 1. Ambil course yang tersedia untuk pretest/posttest
+// 1. Ambil course yang tersedia untuk test (Pretest/Posttest)
+// Panggil di Frontend: /api/teacher/available
 router.get("/available", getAvailableCourses);
-
-// 2. Ambil course yang tersedia (Alternatif)
 router.get("/available-for-test", getAvailableCourses);
 
-// 3. Ambil Course lengkap dengan Modul & Materi
-router.get("/courses-full", getFullCourses);
+// --- RUTE UTAMA (JOIN TABLE) ---
+
+// 2. Ambil semua data course LENGKAP dengan Modul & Materi
+// ✅ SINKRONISASI: Saya pindahkan getFullCourses ke rute utama "/"
+// Karena di Frontend Bapak memanggil: api.get("/api/teacher/courses")
+router.get("/", getFullCourses); 
+
+// 3. Cadangan rute spesifik jika tetap ingin dipanggil terpisah
+router.get("/all/full", getFullCourses);
 
 
-// --- RUTE DINAMIS & UMUM (Wajib di Bawah) ---
+// --- RUTE DINAMIS & RINGKAS ---
 
-// 4. Ambil semua data course (Ringkas)
-router.get("/", getCourses);
+// 4. Ambil data ringkas (Jika dibutuhkan)
+router.get("/list/summary", getCourses);
 
 // 5. Ambil detail satu course berdasarkan ID
+// ✅ Wajib di paling bawah agar tidak bentrok dengan rute teks
 router.get("/:id", getCourseDetail);
 
 module.exports = router;
