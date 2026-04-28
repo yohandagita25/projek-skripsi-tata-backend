@@ -5,7 +5,7 @@ const cookieParser = require("cookie-parser")
 const path = require("path"); 
 
 const authRoutes = require("./routes/authRoutes")
-const courseRoutes = require("./routes/courseRoutes")
+const courseRoutes = require("./routes/courseRoutes") // Ini yang berisi getFullCourses
 const moduleRoutes = require("./routes/moduleRoutes")
 const teacherRoutes = require("./routes/teacherRoutes")
 const testRoutes = require("./routes/testRoutes");
@@ -15,7 +15,6 @@ const app = express()
 
 app.set("trust proxy", 1);
 
-// ✅ 1. Cukup Gunakan Library CORS saja (Hapus yang manual tadi)
 app.use(
   cors({
     origin: "https://projek-skripsi-tata.vercel.app",
@@ -28,16 +27,23 @@ app.use(
 app.use(express.json())
 app.use(cookieParser())
 
-// Akses statis folder uploads
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/", (req,res)=>{
   res.send("Backend Semantic Wave Running")
 })
 
-// Rute API
+// --- PERBAIKAN RUTE API ---
+
 app.use("/api/auth", authRoutes)
-app.use("/api/courses", courseRoutes)
+
+// ✅ SOLUSI: Arahkan /api/teacher/courses LANGSUNG ke courseRoutes
+// Dengan begini, saat Frontend panggil /api/teacher/courses, 
+// dia akan menjalankan getFullCourses yang ada di courseController.
+app.use("/api/teacher/courses", courseRoutes) 
+
+// Rute lainnya tetap
+app.use("/api/courses", courseRoutes) 
 app.use("/api/modules", moduleRoutes)
 app.use("/api/teacher", teacherRoutes)
 app.use("/api/tests", testRoutes);
