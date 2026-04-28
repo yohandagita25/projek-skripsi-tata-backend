@@ -1,14 +1,15 @@
 const pool = require("../config/db");
 const { parseDocx } = require("../services/parserService");
 
-// 1. Upload Gambar untuk Soal/Opsi
+// 1. Upload Gambar
 exports.uploadImage = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "Tidak ada file gambar" });
-    }
-    const baseUrl = `${req.protocol}://${req.get('host')}`; 
-    const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    if (!req.file) return res.status(400).json({ error: "Tidak ada file gambar" });
+    
+    // ✅ Gunakan URL dinamis (mendukung Railway/Localhost)
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
     
     res.json({ url: imageUrl });
   } catch (err) {
@@ -16,68 +17,60 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
-// 2. Simpan Test Baru ke Database (Guru)
+// 2. Simpan Test Baru (Transaksi Database)
 exports.createTest = async (req, res) => {
   const client = await pool.connect(); 
   try {
     const { course_id, type, title, duration, questions } = req.body;
-    
-    if (!questions || !Array.isArray(questions)) {
-      throw new Error("Data soal tidak valid atau kosong");
-    }
+    if (!questions || !Array.isArray(questions)) throw new Error("Data soal kosong");
 
     await client.query("BEGIN");
 
+    // Simpan Test Utama
     const testRes = await client.query(
-      `INSERT INTO tests (course_id, type, title, duration) 
-       VALUES ($1, $2, $3, $4) RETURNING id`,
+      `INSERT INTO tests (course_id, type, title, duration) VALUES ($1, $2, $3, $4) RETURNING id`,
       [course_id, type, title, duration]
     );
     const testId = testRes.rows[0].id;
 
     for (const q of questions) {
+      // Simpan Pertanyaan
       const qRes = await client.query(
-        `INSERT INTO questions (test_id, question_text, question_image) 
-         VALUES ($1, $2, $3) RETURNING id`,
+        `INSERT INTO questions (test_id, question_text, question_image) VALUES ($1, $2, $3) RETURNING id`,
         [testId, q.questionText, q.question_image || null] 
       );
       const questionId = qRes.rows[0].id;
 
       if (q.options && Array.isArray(q.options)) {
         for (const opt of q.options) {
+          // Simpan Opsi
           await client.query(
-            `INSERT INTO options (question_id, option_label, option_text, option_image, is_correct) 
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              questionId, 
-              opt.label, 
-              opt.text, 
-              opt.option_image || null,
-              opt.label === q.answer 
-            ]
+            `INSERT INTO options (question_id, option_label, option_text, option_image, is_correct) VALUES ($1, $2, $3, $4, $5)`,
+            [questionId, opt.label, opt.text, opt.option_image || null, opt.label === q.answer]
           );
         }
       }
     }
 
     await client.query("COMMIT");
-    res.json({ message: "Test saved successfully!", testId });
+    res.json({ status: "success", testId });
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: "Gagal menyimpan data: " + err.message });
+    res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
 };
 
-// 3. Upload File Word dan Parse
+// 3. Upload & Parse DOCX
 exports.uploadAndParse = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Tidak ada file diupload" });
+    if (!req.file) return res.status(400).json({ error: "Pilih file .docx" });
     const questions = await parseDocx(req.file.path);
-    res.json({ questions });
+    // ✅ Bungkus dalam format yang konsisten
+    res.json({ status: "success", data: { questions } });
   } catch (err) {
-    res.status(500).json({ error: "Gagal parsing file: " + err.message });
+    res.status(500).json({ error: "Format file tidak sesuai: " + err.message });
   }
 };
 
@@ -116,7 +109,7 @@ exports.checkTestStatus = async (req, res) => {
   }
 };
 
-// 5. Simpan Hasil Pengerjaan
+// 5. Simpan Hasil Pengerjaan (Transaksi: Submission + Detail Jawaban)
 exports.submitTest = async (req, res) => {
   const { test_id, course_id, test_type, answers } = req.body;
   const user_id = req.user.id;
@@ -125,6 +118,7 @@ exports.submitTest = async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    // A. Ambil Kunci Jawaban untuk validasi skor
     const keysRes = await client.query(
       `SELECT q.id as question_id, o.option_label 
        FROM questions q
@@ -137,11 +131,12 @@ exports.submitTest = async (req, res) => {
 
     if (totalQuestions === 0) throw new Error("Soal tidak ditemukan.");
 
+    // B. Hitung Skor & Siapkan Array untuk Detail Jawaban
     let correctCount = 0;
     const detailAnswers = [];
 
     correctKeys.forEach(key => {
-      const chosen = answers[key.question_id];
+      const chosen = answers[key.question_id]; // Label pilihan siswa (A, B, C, D)
       const isCorrect = chosen === key.option_label;
       if (isCorrect) correctCount++;
       
@@ -154,6 +149,7 @@ exports.submitTest = async (req, res) => {
 
     const finalScore = Math.round((correctCount / totalQuestions) * 100);
 
+    // C. Masukkan ke test_submissions (Gunakan ON CONFLICT agar tidak double data)
     const subRes = await client.query(
       `INSERT INTO test_submissions (user_id, test_id, course_id, test_type, score, status)
        VALUES ($1, $2, $3, $4, $5, 'completed')
@@ -164,8 +160,10 @@ exports.submitTest = async (req, res) => {
     );
     const submissionId = subRes.rows[0].id;
 
+    // D. Hapus detail lama jika ada (agar tidak bentrok saat update)
     await client.query(`DELETE FROM test_submission_answers WHERE submission_id = $1`, [submissionId]);
 
+    // E. Masukkan Detail Jawaban Siswa ke tabel baru
     for (const ans of detailAnswers) {
       await client.query(
         `INSERT INTO test_submission_answers (submission_id, question_id, chosen_option_label, is_correct)
@@ -186,7 +184,8 @@ exports.submitTest = async (req, res) => {
   }
 };
 
-// 6. Ambil Soal-soal Test
+// 6. Ambil Soal (Siswa)
+// 6. Ambil Soal-soal Test (Pastikan ini bisa diakses Siswa)
 exports.getTestData = async (req, res) => {
   const { testId } = req.params;
   try {
@@ -198,7 +197,7 @@ exports.getTestData = async (req, res) => {
               'option_image', o.option_image
           ) ORDER BY o.option_label) AS options
           FROM questions q
-          LEFT JOIN options o ON q.id = o.question_id
+          LEFT JOIN options o ON q.id = o.question_id -- Gunakan LEFT JOIN agar soal tanpa opsi tidak bikin error
           WHERE q.test_id = $1
           GROUP BY q.id
       `, [testId]);
@@ -214,7 +213,7 @@ exports.getTestData = async (req, res) => {
   }
 };
 
-// 7. Review Jawaban
+// 7. Review Jawaban (Menampilkan Benar/Salah per Nomor)
 exports.getTestReview = async (req, res) => {
   const { testId } = req.params;
   const userId = req.user.id;
