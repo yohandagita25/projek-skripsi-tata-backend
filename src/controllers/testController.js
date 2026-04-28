@@ -65,12 +65,19 @@ exports.createTest = async (req, res) => {
 // 3. Upload & Parse DOCX
 exports.uploadAndParse = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Pilih file .docx" });
+    if (!req.file) return res.status(400).json({ error: "Tidak ada file diupload" });
+    
+    // Memanggil parser service Bapak
     const questions = await parseDocx(req.file.path);
-    // ✅ Bungkus dalam format yang konsisten
-    res.json({ status: "success", data: { questions } });
+    
+    // ✅ Kirim response dengan format yang jelas
+    return res.status(200).json({ 
+      status: "success", 
+      data: { questions: questions } 
+    });
   } catch (err) {
-    res.status(500).json({ error: "Format file tidak sesuai: " + err.message });
+    console.error("Parser Error:", err.message);
+    res.status(500).json({ error: "Gagal parsing file: " + err.message });
   }
 };
 
