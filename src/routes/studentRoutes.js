@@ -12,7 +12,8 @@ const {
     getActivityCalendar,
     getLearningStreak,
     getOverallProgress,
-    getChallenges
+    getChallenges,
+    getStudentStats
 } = require("../controllers/studentController");
 
 // Import testController secara terpisah
@@ -46,5 +47,6 @@ router.get("/activity-calendar", getActivityCalendar);
 router.get("/learning-streak", getLearningStreak);
 router.get("/overall-progress", getOverallProgress);
 router.get("/challenges", getChallenges);
+router.get("/stats-summary", getStudentStats);
 
 module.exports = router;

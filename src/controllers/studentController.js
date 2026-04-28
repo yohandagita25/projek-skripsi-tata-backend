@@ -244,3 +244,33 @@ exports.getChallenges = async (req, res) => {
       res.status(500).json({ error: "Gagal memuat data tantangan" });
     }
 };
+
+// Tambahkan fungsi ini di studentController.js
+exports.getStudentStats = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // 1. Hitung Total Kursus Diikuti
+        const coursesCount = await pool.query("SELECT COUNT(*) FROM courses");
+        
+        // 2. Hitung Rata-rata Nilai Tugas (Logic Mastery)
+        const avgScore = await pool.query(
+            "SELECT AVG(score) as avg FROM student_submissions WHERE user_id = $1 AND score IS NOT NULL",
+            [userId]
+        );
+        
+        // 3. Hitung Jumlah Tugas Selesai (Status 'graded')
+        const taskDone = await pool.query(
+            "SELECT COUNT(*) FROM student_submissions WHERE user_id = $1 AND status = 'graded'",
+            [userId]
+        );
+
+        res.json({
+            enrolled: parseInt(coursesCount.rows[0].count),
+            logicMastery: Math.round(avgScore.rows[0].avg || 0),
+            tasksCompleted: parseInt(taskDone.rows[0].count)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
