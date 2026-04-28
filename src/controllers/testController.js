@@ -251,3 +251,32 @@ exports.getTestReview = async (req, res) => {
     res.status(500).json({ error: "Gagal memuat review" });
   }
 };
+
+// Ambil Rekap Nilai Siswa per Course & Tipe Test
+exports.getTestResultsByCourse = async (req, res) => {
+  const { testType, courseId } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT 
+        ts.id AS submission_id,
+        u.nama AS student_name,
+        u.email AS student_email,
+        t.title AS test_title,
+        ts.score,
+        TO_CHAR(ts.created_at, 'DD Mon YYYY, HH24:MI') AS submitted_at
+      FROM test_submissions ts
+      JOIN users u ON ts.user_id = u.id
+      JOIN tests t ON ts.test_id = t.id
+      WHERE ts.course_id = $1 AND ts.test_type = $2
+      ORDER BY ts.created_at DESC
+    `, [courseId, testType]);
+
+    res.json({
+      status: "success",
+      data: result.rows
+    });
+  } catch (err) {
+    console.error("Error Get Results:", err.message);
+    res.status(500).json({ error: "Gagal memuat rekap nilai" });
+  }
+};
