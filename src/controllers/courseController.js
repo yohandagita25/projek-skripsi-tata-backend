@@ -24,7 +24,7 @@ exports.getCourseDetail = async (req, res) => {
 };
 
 // 3. Ambil Course lengkap dengan Modul & Materi (JOIN SESUAI ERD)
-const pool = require("../config/db");
+
 
 exports.getFullCourses = async (req, res) => {
   try {
