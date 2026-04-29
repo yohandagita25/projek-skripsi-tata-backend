@@ -7,31 +7,28 @@ const {
     getCourseDetail 
 } = require("../controllers/courseController");
 
-// --- RUTE SPESIFIK ---
+// --- 1. RUTE STATIS (Wajib di Atas) ---
 
-// 1. Ambil course yang tersedia untuk test (Pretest/Posttest)
-// Panggil di Frontend: /api/teacher/available
+// Rute untuk mengambil semua data lengkap (Courses + Modules + Materi)
+// Ini rute yang dipanggil oleh CourseRedirect di Frontend
+router.get("/courses-full", getFullCourses); 
+
+// Rute cadangan/alternatif
+router.get("/all/full", getFullCourses);
+router.get("/", getFullCourses); 
+
+// Rute untuk dropdown pilihan course di pembuatan test
 router.get("/available", getAvailableCourses);
 router.get("/available-for-test", getAvailableCourses);
 
-// --- RUTE UTAMA (JOIN TABLE) ---
-
-// 2. Ambil semua data course LENGKAP dengan Modul & Materi
-// ✅ SINKRONISASI: Saya pindahkan getFullCourses ke rute utama "/"
-// Karena di Frontend Bapak memanggil: api.get("/api/teacher/courses")
-router.get("/", getFullCourses); 
-
-// 3. Cadangan rute spesifik jika tetap ingin dipanggil terpisah
-router.get("/all/full", getFullCourses);
-
-
-// --- RUTE DINAMIS & RINGKAS ---
-
-// 4. Ambil data ringkas (Jika dibutuhkan)
+// Rute untuk daftar course ringkas
 router.get("/list/summary", getCourses);
 
-// 5. Ambil detail satu course berdasarkan ID
-// ✅ Wajib di paling bawah agar tidak bentrok dengan rute teks
+
+// --- 2. RUTE DINAMIS (Wajib di Paling Bawah) ---
+
+// Mengambil detail 1 course berdasarkan ID
+// Dengan menaruh ini di bawah, Express tidak akan mengira "courses-full" adalah sebuah ID (Integer)
 router.get("/:id", getCourseDetail);
 
 module.exports = router;
