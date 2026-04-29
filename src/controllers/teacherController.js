@@ -48,24 +48,30 @@ exports.getStudentProgress = async (req, res) => {
   try {
     const query = `
       SELECT 
-        u.id as student_id, u.name as student_name, u.email as student_email,
-        u.current_streak, u.last_activity_date,
-        (SELECT m.title FROM student_submissions sub 
-         JOIN materi m ON sub.materi_id = m.id 
-         WHERE sub.user_id = u.id ORDER BY sub.created_at DESC LIMIT 1) as last_materi,
-        (SELECT c.title FROM student_submissions sub 
-         JOIN materi m ON sub.materi_id = m.id 
-         JOIN modules mo ON m.module_id = mo.id
-         JOIN courses c ON mo.course_id = c.id
-         WHERE sub.user_id = u.id ORDER BY sub.created_at DESC LIMIT 1) as last_course
+        u.id, u.name, u.email,
+        -- Menghitung jumlah tugas yang sudah dikirim
+        (SELECT COUNT(*) FROM student_submissions ss WHERE ss.user_id = u.id) as tasks_sent,
+        -- Menghitung jumlah tugas yang sudah dinilai
+        (SELECT COUNT(*) FROM student_submissions ss WHERE ss.user_id = u.id AND ss.status = 'graded') as tasks_graded,
+        -- Mengambil skor rata-rata
+        (SELECT AVG(score) FROM student_submissions ss WHERE ss.user_id = u.id AND ss.score IS NOT NULL) as avg_score,
+        u.last_activity_date,
+        u.current_streak
       FROM users u
-      WHERE u.role = 'student'
-      ORDER BY u.last_activity_date DESC NULLS LAST;
+      WHERE u.role = 'student' -- Pastikan hanya mengambil user dengan role student
+      ORDER BY u.name ASC
     `;
+    
     const result = await pool.query(query);
-    res.json({ status: "success", data: result.rows });
-  } catch (error) {
-    res.status(500).json({ error: "Gagal memproses data siswa" });
+    
+    // Pastikan mengirim status success dan data berupa array
+    res.json({
+      status: "success",
+      data: result.rows
+    });
+  } catch (err) {
+    console.error("MONITOR ERROR:", err.message);
+    res.status(500).json({ error: err.message });
   }
 };
 
