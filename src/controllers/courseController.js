@@ -26,39 +26,40 @@ exports.getCourseDetail = async (req, res) => {
 // 3. Ambil Course lengkap dengan Modul & Materi (JOIN SESUAI ERD)
 exports.getFullCourses = async (req, res) => {
   try {
-    // Gunakan alias eksplisit untuk menghindari kebingungan kolom 'type' dan 'starter_code'
+    // Gunakan query yang paling aman tanpa alias yang rumit dulu untuk testing
     const result = await pool.query(`
       SELECT 
-        c.id AS c_id, c.title AS c_title, c.instructor AS c_instructor, c.thumbnail AS c_thumb, c.description AS c_desc,
-        m.id AS m_id, m.title AS m_title, m.module_order AS m_order,
-        t.id AS mat_id, t.title AS mat_title, t.content AS mat_content, t.video_url AS mat_video, t.type AS mat_type, 
-        t.has_reflection AS mat_reflect, t.reflection_question AS mat_reflect_q,
-        a.id AS assign_id, a.instruction AS assign_inst, a.type AS assign_type, a.starter_code AS assign_starter
-      FROM courses c
-      LEFT JOIN modules m ON m.course_id = c.id
-      LEFT JOIN materi t ON t.module_id = m.id
-      LEFT JOIN assignments a ON a.materi_id = t.id
-      ORDER BY c.id DESC, m.module_order ASC, t.order_number ASC
+        courses.id AS c_id, courses.title AS c_title, courses.instructor AS c_ins, 
+        courses.thumbnail AS c_thumb, courses.description AS c_desc,
+        modules.id AS m_id, modules.title AS m_title, modules.module_order AS m_order,
+        materi.id AS mat_id, materi.title AS mat_title, materi.content AS mat_cont, 
+        materi.video_url AS mat_vid, materi.type AS mat_type, 
+        materi.has_reflection AS mat_ref, materi.reflection_question AS mat_ref_q,
+        assignments.id AS as_id, assignments.instruction AS as_inst, 
+        assignments.type AS as_type, assignments.starter_code AS as_start
+      FROM courses
+      LEFT JOIN modules ON modules.course_id = courses.id
+      LEFT JOIN materi ON materi.module_id = modules.id
+      LEFT JOIN assignments ON assignments.materi_id = materi.id
+      ORDER BY courses.id DESC, modules.module_order ASC, materi.order_number ASC
     `);
 
     const coursesMap = {};
 
     result.rows.forEach(row => {
-      // 1. Inisialisasi Course
       if (!coursesMap[row.c_id]) {
         coursesMap[row.c_id] = {
-          id: row.c_id, 
-          title: row.c_title, 
-          instructor: row.c_instructor,
-          thumbnail: row.c_thumb, 
-          description: row.c_desc || "", 
+          id: row.c_id,
+          title: row.c_title,
+          instructor: row.c_ins,
+          thumbnail: row.c_thumb,
+          description: row.c_desc || "",
           modules: []
         };
       }
       
       const course = coursesMap[row.c_id];
 
-      // 2. Inisialisasi Module
       if (row.m_id) {
         let module = course.modules.find(m => m.id === row.m_id);
         if (!module) {
@@ -71,23 +72,22 @@ exports.getFullCourses = async (req, res) => {
           course.modules.push(module);
         }
 
-        // 3. Inisialisasi Materi
         if (row.mat_id) {
           let materiExists = module.materi.find(mat => mat.id === row.mat_id);
           if (!materiExists) {
             module.materi.push({ 
               id: row.mat_id, 
               title: row.mat_title, 
-              content: row.mat_content, 
-              video_url: row.mat_video,
+              content: row.mat_cont, 
+              video_url: row.mat_vid,
               type: row.mat_type,
-              has_reflection: row.mat_reflect,
-              reflection_question: row.mat_reflect_q,
-              assignment: row.assign_id ? { 
-                id: row.assign_id, 
-                type: row.assign_type,
-                instruction: row.assign_inst,
-                starter_code: row.assign_starter // Data starter_code dari DB
+              has_reflection: row.mat_ref,
+              reflection_question: row.mat_ref_q,
+              assignment: row.as_id ? { 
+                id: row.as_id, 
+                type: row.as_type,
+                instruction: row.as_inst,
+                starter_code: row.as_start || "" 
               } : null
             });
           }
@@ -101,8 +101,8 @@ exports.getFullCourses = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("FATAL ERROR DB:", err.message);
-    res.status(500).json({ status: "error", message: "Database Sync Error: " + err.message });
+    console.error("DEBUG ERROR:", err.message);
+    res.status(500).json({ status: "error", message: err.message });
   }
 };
 
