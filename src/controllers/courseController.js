@@ -24,16 +24,16 @@ exports.getCourseDetail = async (req, res) => {
 };
 
 // 3. Ambil Course lengkap dengan Modul & Materi (JOIN SESUAI ERD)
-
 exports.getFullCourses = async (req, res) => {
   try {
+    // Gunakan alias eksplisit untuk menghindari kebingungan kolom 'type' dan 'starter_code'
     const result = await pool.query(`
       SELECT 
-        c.id AS course_id, c.title AS course_title, c.instructor, c.thumbnail, c.description,
-        m.id AS module_id, m.title AS module_title, m.module_order,
-        t.id AS materi_id, t.title AS materi_title, t.content, t.video_url, t.type AS materi_type, t.order_number,
-        t.has_reflection, t.reflection_question,
-        a.id AS assignment_id, a.instruction AS assignment_instruction, a.type AS assignment_type, a.starter_code
+        c.id AS c_id, c.title AS c_title, c.instructor AS c_instructor, c.thumbnail AS c_thumb, c.description AS c_desc,
+        m.id AS m_id, m.title AS m_title, m.module_order AS m_order,
+        t.id AS mat_id, t.title AS mat_title, t.content AS mat_content, t.video_url AS mat_video, t.type AS mat_type, 
+        t.has_reflection AS mat_reflect, t.reflection_question AS mat_reflect_q,
+        a.id AS assign_id, a.instruction AS assign_inst, a.type AS assign_type, a.starter_code AS assign_starter
       FROM courses c
       LEFT JOIN modules m ON m.course_id = c.id
       LEFT JOIN materi t ON t.module_id = m.id
@@ -42,49 +42,55 @@ exports.getFullCourses = async (req, res) => {
     `);
 
     const coursesMap = {};
+
     result.rows.forEach(row => {
-      if (!coursesMap[row.course_id]) {
-        coursesMap[row.course_id] = {
-          id: row.course_id, 
-          title: row.course_title, 
-          instructor: row.instructor,
-          thumbnail: row.thumbnail, 
-          description: row.description || "", 
+      // 1. Inisialisasi Course
+      if (!coursesMap[row.c_id]) {
+        coursesMap[row.c_id] = {
+          id: row.c_id, 
+          title: row.c_title, 
+          instructor: row.c_instructor,
+          thumbnail: row.c_thumb, 
+          description: row.c_desc || "", 
           modules: []
         };
       }
-      const course = coursesMap[row.course_id];
       
-      let module = course.modules.find(m => m.id === row.module_id);
-      if (!module && row.module_id) {
-        module = { 
-          id: row.module_id, 
-          title: row.module_title, 
-          module_order: row.module_order, 
-          materi: [] 
-        };
-        course.modules.push(module);
-      }
-      
-      if (module && row.materi_id) {
-        // Cek apakah materi ini sudah ada di array (mencegah duplikasi akibat JOIN assignment)
-        let materiExists = module.materi.find(mat => mat.id === row.materi_id);
-        if (!materiExists) {
-          module.materi.push({ 
-            id: row.materi_id, 
-            title: row.materi_title, 
-            content: row.content, 
-            video_url: row.video_url,
-            type: row.materi_type,
-            has_reflection: row.has_reflection,
-            reflection_question: row.reflection_question,
-            assignment: row.assignment_id ? { 
-              id: row.assignment_id, 
-              type: row.assignment_type,
-              instruction: row.assignment_instruction,
-              starter_code: row.starter_code // Pastikan starter_code ikut terkirim
-            } : null
-          });
+      const course = coursesMap[row.c_id];
+
+      // 2. Inisialisasi Module
+      if (row.m_id) {
+        let module = course.modules.find(m => m.id === row.m_id);
+        if (!module) {
+          module = { 
+            id: row.m_id, 
+            title: row.m_title, 
+            module_order: row.m_order, 
+            materi: [] 
+          };
+          course.modules.push(module);
+        }
+
+        // 3. Inisialisasi Materi
+        if (row.mat_id) {
+          let materiExists = module.materi.find(mat => mat.id === row.mat_id);
+          if (!materiExists) {
+            module.materi.push({ 
+              id: row.mat_id, 
+              title: row.mat_title, 
+              content: row.mat_content, 
+              video_url: row.mat_video,
+              type: row.mat_type,
+              has_reflection: row.mat_reflect,
+              reflection_question: row.mat_reflect_q,
+              assignment: row.assign_id ? { 
+                id: row.assign_id, 
+                type: row.assign_type,
+                instruction: row.assign_inst,
+                starter_code: row.assign_starter // Data starter_code dari DB
+              } : null
+            });
+          }
         }
       }
     });
@@ -93,9 +99,10 @@ exports.getFullCourses = async (req, res) => {
       status: "success",
       data: Object.values(coursesMap)
     });
+
   } catch (err) {
-    console.error("ERROR GET FULL COURSES:", err.message);
-    res.status(500).json({ error: "Internal Server Error: " + err.message });
+    console.error("FATAL ERROR DB:", err.message);
+    res.status(500).json({ status: "error", message: "Database Sync Error: " + err.message });
   }
 };
 
