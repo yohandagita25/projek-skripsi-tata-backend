@@ -280,3 +280,35 @@ exports.getTestResultsByCourse = async (req, res) => {
     res.status(500).json({ error: "Gagal memuat rekap nilai" });
   }
 };
+
+exports.getDetailedResults = async (req, res) => {
+  try {
+      const { testType, courseId } = req.params;
+
+      // Query untuk mengambil nilai siswa berdasarkan tipe test dan course
+      const query = `
+          SELECT 
+              ts.id AS submission_id,
+              u.name AS student_name,
+              u.email AS student_email,
+              t.title AS test_title,
+              ts.score,
+              TO_CHAR(ts.created_at, 'DD Mon YYYY, HH24:MI') AS submitted_at
+          FROM test_submissions ts
+          JOIN users u ON ts.user_id = u.id
+          JOIN tests t ON ts.test_id = t.id
+          WHERE t.type = $1 AND t.course_id = $2
+          ORDER BY ts.created_at DESC
+      `;
+
+      const result = await pool.query(query, [testType, courseId]);
+
+      res.json({
+          status: "success",
+          data: result.rows
+      });
+  } catch (err) {
+      console.error("GET RESULTS ERROR:", err.message);
+      res.status(500).json({ error: "Internal Server Error: " + err.message });
+  }
+};
