@@ -85,7 +85,6 @@ exports.submitAssignment = async (req, res) => {
         res.status(500).json({ error: "Gagal simpan ke DB: " + error.message });
     }
 };
-
 // 3. AMBIL STATUS SUBMISSION
 exports.getSubmission = async (req, res) => {
     const { materi_id } = req.params;
