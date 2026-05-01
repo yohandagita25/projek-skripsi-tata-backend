@@ -1,11 +1,12 @@
 const axios = require('axios');
 
-const runCCode = async (code) => {
+const runCCode = async (code, stdin = "") => { // Tambahkan parameter stdin
   try {
     const response = await axios.post(
       "https://api.onecompiler.com/v1/run",
       {
         language: "c",
+        stdin: stdin, // 👈 KIRIM INPUTAN DISINI
         files: [
           {
             name: "main.c",
@@ -21,8 +22,6 @@ const runCCode = async (code) => {
       }
     );
 
-    console.log("FULL RESPONSE:", response.data);
-
     return {
       stdout: response.data.stdout || "",
       stderr: response.data.stderr || "",
@@ -30,7 +29,6 @@ const runCCode = async (code) => {
     };
 
   } catch (error) {
-    console.log("ERROR FROM ONECOMPILER:", error.response?.data);
     throw new Error(error.response?.data?.message || "Compiler error");
   }
 };

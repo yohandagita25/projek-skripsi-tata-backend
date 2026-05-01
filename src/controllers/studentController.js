@@ -47,10 +47,11 @@ const updateLearningStreak = async (userId) => {
 
 // 1. COMPILE & LOG PERCOBAAN
 exports.runAndLogCode = async (req, res) => {
-    const { materi_id, code } = req.body;
+    const { materi_id, code, stdin } = req.body; // 👈 Ambil stdin dari frontend
     const user_id = req.user.id; 
     try {
-        const result = await runCCode(code);
+        const result = await runCCode(code, stdin); // 👈 Teruskan ke service
+        // Simpan ke history attempt (opsional: simpan juga stdin-nya)
         await pool.query(
             `INSERT INTO student_attempts (user_id, materi_id, code_content, output, status) 
              VALUES ($1, $2, $3, $4, $5)`,
