@@ -72,34 +72,41 @@ exports.getStudentProgress = async (req, res) => {
   } catch (err) {
     console.error("MONITOR ERROR:", err.message);
     res.status(500).json({ error: err.message });
-  }
+  } 
 };
 
 // 4. DAFTAR SUB-BAB UNTUK PENILAIAN (GRADING HUB)
-// ✅ Gabungan dari getGradingModules & getMateriGradingStatus (Pilih salah satu nama fungsi)
 exports.getGradingModules = async (req, res) => {
   const { courseId } = req.params;
   try {
-    const result = await pool.query(`
+    const query = `
       SELECT 
         t.id, 
         t.title, 
         t.type,
-        -- Menghitung tugas yang belum dinilai
+        -- Menghitung tugas yang berstatus 'submitted' (menunggu nilai)
         (SELECT COUNT(*) FROM student_submissions ss 
-         WHERE ss.materi_id = t.id AND ss.score IS NULL) as pending_count,
-        -- Menghitung tugas yang sudah dinilai
+         WHERE ss.materi_id = t.id AND ss.status = 'submitted') as pending_count,
+        -- Menghitung tugas yang sudah berstatus 'graded'
         (SELECT COUNT(*) FROM student_submissions ss 
-         WHERE ss.materi_id = t.id AND ss.score IS NOT NULL) as graded_count
+         WHERE ss.materi_id = t.id AND ss.status = 'graded') as graded_count
       FROM materi t
       JOIN modules m ON t.module_id = m.id
-      WHERE m.course_id = $1 AND (t.type = 'code' OR t.type = 'flowchart')
+      -- Cek apakah materi ini memiliki data di tabel assignments
+      JOIN assignments a ON a.materi_id = t.id 
+      WHERE m.course_id = $1
       ORDER BY m.module_order ASC, t.order_number ASC
-    `, [courseId]);
+    `;
 
-    res.json({ status: "success", data: result.rows });
+    const result = await pool.query(query, [courseId]);
+
+    res.json({ 
+      status: "success", 
+      data: result.rows 
+    });
   } catch (err) {
-    res.status(500).json({ error: "Gagal memuat daftar tugas" });
+    console.error("GRADING MODULES ERROR:", err.message);
+    res.status(500).json({ error: "Gagal memuat daftar tugas: " + err.message });
   }
 };
 
