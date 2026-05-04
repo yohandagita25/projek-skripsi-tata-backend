@@ -76,6 +76,8 @@ exports.getStudentProgress = async (req, res) => {
 };
 
 // 4. DAFTAR SUB-BAB UNTUK PENILAIAN (GRADING HUB)
+// backend/controllers/teacherController.js
+
 exports.getGradingModules = async (req, res) => {
   const { courseId } = req.params;
   try {
@@ -84,29 +86,23 @@ exports.getGradingModules = async (req, res) => {
         t.id, 
         t.title, 
         t.type,
-        -- Menghitung tugas yang berstatus 'submitted' (menunggu nilai)
+        m.id as module_id,      -- 👈 Tambahkan ini
+        m.title as module_name, -- 👈 Tambahkan ini agar tidak muncul "Lainnya"
         (SELECT COUNT(*) FROM student_submissions ss 
          WHERE ss.materi_id = t.id AND ss.status = 'submitted') as pending_count,
-        -- Menghitung tugas yang sudah berstatus 'graded'
         (SELECT COUNT(*) FROM student_submissions ss 
          WHERE ss.materi_id = t.id AND ss.status = 'graded') as graded_count
       FROM materi t
       JOIN modules m ON t.module_id = m.id
-      -- Cek apakah materi ini memiliki data di tabel assignments
       JOIN assignments a ON a.materi_id = t.id 
       WHERE m.course_id = $1
       ORDER BY m.module_order ASC, t.order_number ASC
     `;
 
     const result = await pool.query(query, [courseId]);
-
-    res.json({ 
-      status: "success", 
-      data: result.rows 
-    });
+    res.json({ status: "success", data: result.rows });
   } catch (err) {
-    console.error("GRADING MODULES ERROR:", err.message);
-    res.status(500).json({ error: "Gagal memuat daftar tugas: " + err.message });
+    res.status(500).json({ error: "Gagal memuat daftar tugas" });
   }
 };
 
