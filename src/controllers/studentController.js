@@ -119,41 +119,84 @@ exports.getActivityCalendar = async (req, res) => {
     }
 };
 
-// 5. CATAT AKTIVITAS BELAJAR & UPDATE STREAK
+
+// 5. CATAT AKTIVITAS BELAJAR, UPDATE STREAK & HITUNG DURASI MENIT
 exports.logMateriActivity = async (req, res) => {
     try {
         const userId = req.user.id; 
         
-        const query = `
+        // --- LOGIKA KALENDER (User Activities) ---
+        const activityQuery = `
             INSERT INTO user_activities (user_id, activity_date) 
             VALUES ($1, CURRENT_DATE) 
             ON CONFLICT (user_id, activity_date) DO NOTHING;
         `;
-        await pool.query(query, [userId]);
+        await pool.query(activityQuery, [userId]);
 
+        // --- LOGIKA DURASI (User Sessions) ---
+        // 1. Cari apakah sudah ada sesi aktif hari ini
+        const checkSession = await pool.query(
+            `SELECT id, login_at FROM user_sessions 
+             WHERE user_id = $1 AND is_processed = TRUE 
+             AND login_at > CURRENT_DATE 
+             ORDER BY login_at DESC LIMIT 1`,
+            [userId]
+        );
+
+        if (checkSession.rows.length > 0) {
+            // 2. Jika sudah ada, UPDATE durasi berdasarkan selisih waktu sekarang dengan login_at awal
+            const sessionId = checkSession.rows[0].id;
+            const loginAt = new Date(checkSession.rows[0].login_at);
+            const now = new Date();
+            
+            const diffMs = now - loginAt;
+            const diffMins = Math.floor(diffMs / 60000); // Konversi ke menit
+
+            await pool.query(
+                `UPDATE user_sessions 
+                 SET last_active_at = CURRENT_TIMESTAMP, 
+                     duration_minutes = $1 
+                 WHERE id = $2`,
+                [diffMins, sessionId]
+            );
+        } else {
+            // 3. Jika belum ada sesi hari ini, buat record pertama
+            await pool.query(
+                `INSERT INTO user_sessions (user_id, login_at, last_active_at, duration_minutes, is_processed) 
+                 VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, TRUE)`,
+                [userId]
+            );
+        }
+
+        // --- UPDATE STREAK ---
         await updateLearningStreak(userId);
 
-        res.status(200).json({ success: true, message: "Aktivitas dan Streak diperbarui" });
+        res.status(200).json({ success: true, message: "Aktivitas, Durasi, dan Streak diperbarui" });
     } catch (error) {
+        console.error("LOG ACTIVITY ERROR:", error.message);
         res.status(500).json({ success: false, error: "Gagal mencatat aktivitas" });
     }
 };
 
-// 6. AMBIL TOTAL DURASI BELAJAR
+// 6. AMBIL TOTAL DURASI BELAJAR (DIPERBAIKI)
 exports.getStudyDuration = async (req, res) => {
     try {
         const userId = req.user.id;
+        // Kita gunakan SUM karena durasi bisa tersebar di beberapa sesi (jika ada)
         const query = `
             SELECT COALESCE(SUM(duration_minutes), 0) as total_minutes 
             FROM user_sessions 
             WHERE user_id = $1 AND is_processed = TRUE
         `;
         const result = await pool.query(query, [userId]);
+        
+        // Pastikan nama properti JSON adalah totalMinutes (sesuai Dashboard frontend)
         res.json({ totalMinutes: parseInt(result.rows[0].total_minutes) });
     } catch (error) {
         res.status(500).json({ error: "Gagal mengambil durasi" });
     }
 };
+
 
 // 7. AMBIL ANGKA STREAK UNTUK DASHBOARD
 exports.getLearningStreak = async (req, res) => {
