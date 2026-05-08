@@ -6,7 +6,8 @@ const { runCCode } = require("../services/compilerService");
  * Digunakan internal oleh controller
  */
 const updateLearningStreak = async (userId) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset jam ke 00:00 untuk perbandingan tanggal saja
     
     try {
         const userResult = await pool.query(
@@ -20,30 +21,37 @@ const updateLearningStreak = async (userId) => {
         let newStreak = current_streak || 0;
 
         if (!last_activity_date) {
+            // Pengguna baru pertama kali beraktivitas
             newStreak = 1;
         } else {
             const lastDate = new Date(last_activity_date);
-            const currentDate = new Date(today);
-            const diffTime = currentDate - lastDate;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            lastDate.setHours(0, 0, 0, 0);
+            
+            // Hitung selisih hari
+            const diffTime = today - lastDate;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
             if (diffDays === 1) {
+                // Login tepat satu hari setelah hari terakhir (Streak berlanjut)
                 newStreak += 1;
             } else if (diffDays > 1) {
+                // Ada hari yang bolong (Streak reset ke 1)
                 newStreak = 1;
             } else if (diffDays === 0) {
-                return; // Sudah diupdate hari ini
+                // Sudah login/update hari ini, tidak perlu ubah apa-apa
+                return; 
             }
         }
 
         await pool.query(
             "UPDATE users SET current_streak = $1, last_activity_date = $2 WHERE id = $3",
-            [newStreak, today, userId]
+            [newStreak, today.toISOString().split('T')[0], userId]
         );
     } catch (err) {
         console.error("STREAK HELPER ERROR:", err.message);
     }
 };
+
 
 // 1. COMPILE & LOG PERCOBAAN
 exports.runAndLogCode = async (req, res) => {
