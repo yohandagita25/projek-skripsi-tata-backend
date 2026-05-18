@@ -27,7 +27,7 @@ exports.createMateri = async (req, res) => {
       `INSERT INTO materi (
         module_id, title, content, video_url, order_number, type, 
         has_reflection, reflection_question,
-        learning_objectives // 👈 Tambahkan kolom ini
+        learning_objectives 
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
