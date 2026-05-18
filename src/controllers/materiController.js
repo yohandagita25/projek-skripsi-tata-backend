@@ -19,15 +19,17 @@ exports.createMateri = async (req, res) => {
   try {
     const { 
       module_id, title, content, video_url, order_number, type, 
-      has_reflection, reflection_question 
+      has_reflection, reflection_question,
+      learning_objectives // 👈 Tambahkan ini
     } = req.body;
     
     const result = await pool.query(
       `INSERT INTO materi (
         module_id, title, content, video_url, order_number, type, 
-        has_reflection, reflection_question
+        has_reflection, reflection_question,
+        learning_objectives // 👈 Tambahkan kolom ini
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, // 👈 Tambah parameter $9
       [
         module_id, 
         title || "Materi Baru", 
@@ -36,7 +38,8 @@ exports.createMateri = async (req, res) => {
         Number(order_number) || 0, 
         type || "text",
         has_reflection || false,
-        reflection_question || ""
+        reflection_question || "",
+        JSON.stringify(learning_objectives || []) // 👈 Masukkan sebagai string JSON
       ]
     );
     res.json(result.rows[0]);
@@ -52,7 +55,8 @@ exports.updateMateri = async (req, res) => {
     const { id } = req.params;
     const { 
       title, type, content, video_url, order_number, 
-      has_reflection, reflection_question 
+      has_reflection, reflection_question,
+      learning_objectives // 👈 Tambahkan ini
     } = req.body;
 
     const result = await pool.query(
@@ -63,8 +67,9 @@ exports.updateMateri = async (req, res) => {
            video_url = $4, 
            order_number = $5,
            has_reflection = $6,
-           reflection_question = $7
-       WHERE id = $8 RETURNING *`,
+           reflection_question = $7,
+           learning_objectives = $8 // 👈 Tambahkan kolom ini
+       WHERE id = $9 RETURNING *`, // 👈 Index id bergeser ke $9
       [
         title || "Untitled", 
         type || "text", 
@@ -73,7 +78,8 @@ exports.updateMateri = async (req, res) => {
         Number(order_number) || 0, 
         has_reflection || false,
         reflection_question || "",
-        id
+        JSON.stringify(learning_objectives || []), // 👈 Parameter $8
+        id // 👈 Parameter $9
       ]
     );
 
