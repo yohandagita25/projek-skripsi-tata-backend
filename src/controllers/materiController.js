@@ -20,7 +20,7 @@ exports.createMateri = async (req, res) => {
     const { 
       module_id, title, content, video_url, order_number, type, 
       has_reflection, reflection_question,
-      learning_objectives // 👈 Tambahkan ini
+      learning_objectives
     } = req.body;
     
     const result = await pool.query(
@@ -29,7 +29,7 @@ exports.createMateri = async (req, res) => {
         has_reflection, reflection_question,
         learning_objectives // 👈 Tambahkan kolom ini
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`, // 👈 Tambah parameter $9
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         module_id, 
         title || "Materi Baru", 
@@ -39,7 +39,7 @@ exports.createMateri = async (req, res) => {
         type || "text",
         has_reflection || false,
         reflection_question || "",
-        JSON.stringify(learning_objectives || []) // 👈 Masukkan sebagai string JSON
+        JSON.stringify(learning_objectives || [])
       ]
     );
     res.json(result.rows[0]);
@@ -56,7 +56,7 @@ exports.updateMateri = async (req, res) => {
     const { 
       title, type, content, video_url, order_number, 
       has_reflection, reflection_question,
-      learning_objectives // 👈 Tambahkan ini
+      learning_objectives
     } = req.body;
 
     const result = await pool.query(
@@ -68,8 +68,8 @@ exports.updateMateri = async (req, res) => {
            order_number = $5,
            has_reflection = $6,
            reflection_question = $7,
-           learning_objectives = $8 // 👈 Tambahkan kolom ini
-       WHERE id = $9 RETURNING *`, // 👈 Index id bergeser ke $9
+           learning_objectives = $8
+       WHERE id = $9 RETURNING *`,
       [
         title || "Untitled", 
         type || "text", 
@@ -78,8 +78,8 @@ exports.updateMateri = async (req, res) => {
         Number(order_number) || 0, 
         has_reflection || false,
         reflection_question || "",
-        JSON.stringify(learning_objectives || []), // 👈 Parameter $8
-        id // 👈 Parameter $9
+        JSON.stringify(learning_objectives || []),
+        id
       ]
     );
 
