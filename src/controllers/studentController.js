@@ -220,54 +220,55 @@ exports.getLearningStreak = async (req, res) => {
     }
 };
 
-// 8. AMBIL OVERALL PROGRESS
+// 8. AMBIL OVERALL PROGRESS (DIUPDATE UNTUK MENDUKUNG LEARNING OBJECTIVES)
 exports.getOverallProgress = async (req, res) => {
-  const userId = req.user.id;
-  try {
-    const query = `
-      SELECT 
-        c.id AS course_id,
-        c.title AS course_title,
-        
-        (SELECT json_build_object(
-          'score', ts.score,
-          'status', ts.status
-         ) FROM test_submissions ts 
-         WHERE ts.user_id = $1 AND ts.course_id = c.id AND ts.test_type = 'pretest' 
-         LIMIT 1) AS pretest,
-
-        (SELECT json_build_object(
-          'score', ts.score,
-          'status', ts.status
-         ) FROM test_submissions ts 
-         WHERE ts.user_id = $1 AND ts.course_id = c.id AND ts.test_type = 'posttest' 
-         LIMIT 1) AS posttest,
-
-        (SELECT json_agg(json_build_object(
-        'materi_id', m.id,
-        'materi_title', m.title,
-        'module_title', mo_inner.title,
-        'assignment_id', a.id,
-        'submission_status', ss.status,
-        'submission_score', ss.score
-        ))
-        FROM materi m
-        JOIN modules mo_inner ON m.module_id = mo_inner.id -- Join ke modul
-        JOIN assignments a ON m.id = a.materi_id
-        LEFT JOIN student_submissions ss ON m.id = ss.materi_id AND ss.user_id = $1
-        WHERE m.module_id IN (SELECT id FROM modules WHERE course_id = c.id)
-        ) AS assignments_progress
-
-      FROM courses c
-      ORDER BY c.created_at DESC;
-    `;
-    const result = await pool.query(query, [userId]);
-    res.json(result.rows);
-  } catch (error) {
-    console.error("GET PROGRESS ERROR:", error.message);
-    res.status(500).json({ error: "Gagal memproses progres belajar" });
-  }
-};
+    const userId = req.user.id;
+    try {
+      const query = `
+        SELECT 
+          c.id AS course_id,
+          c.title AS course_title,
+          
+          (SELECT json_build_object(
+            'score', ts.score,
+            'status', ts.status
+           ) FROM test_submissions ts 
+           WHERE ts.user_id = $1 AND ts.course_id = c.id AND ts.test_type = 'pretest' 
+           LIMIT 1) AS pretest,
+  
+          (SELECT json_build_object(
+            'score', ts.score,
+            'status', ts.status
+           ) FROM test_submissions ts 
+           WHERE ts.user_id = $1 AND ts.course_id = c.id AND ts.test_type = 'posttest' 
+           LIMIT 1) AS posttest,
+  
+          (SELECT json_agg(json_build_object(
+            'materi_id', m.id,
+            'materi_title', m.title,
+            'module_title', mo_inner.title,
+            'learning_objectives', m.learning_objectives,
+            'assignment_id', a.id,
+            'submission_status', ss.status,
+            'submission_score', ss.score
+          ))
+          FROM materi m
+          JOIN modules mo_inner ON m.module_id = mo_inner.id
+          LEFT JOIN assignments a ON m.id = a.materi_id -- Menggunakan LEFT agar materi tanpa tugas tidak hilang
+          LEFT JOIN student_submissions ss ON m.id = ss.materi_id AND ss.user_id = $1
+          WHERE m.module_id IN (SELECT id FROM modules WHERE course_id = c.id)
+          ) AS assignments_progress
+  
+        FROM courses c
+        ORDER BY c.created_at DESC;
+      `;
+      const result = await pool.query(query, [userId]);
+      res.json(result.rows);
+    } catch (error) {
+      console.error("GET PROGRESS ERROR:", error.message);
+      res.status(500).json({ error: "Gagal memproses progres belajar" });
+    }
+  };
 
 // 9. AMBIL CHALLENGES (MODIFIKASI: Mendukung Post-test & Lock Logic)
 exports.getChallenges = async (req, res) => {
