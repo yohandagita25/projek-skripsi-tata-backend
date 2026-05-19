@@ -8,13 +8,14 @@ const authorizeRole = require("../middleware/roleMiddleware");
 const { 
   getDashboardStats, 
   getCourseProgressStats, 
-  getStudentProgress, 
+  getStudentProgress,
+  getStudentAnalytics,
   getGradingModules, 
   getSubmissionsByMateri, 
   updateGrade, 
   upsertAssignment, 
   deleteAssignment, 
-  getTestResults 
+  getTestResults ,
 } = require("../controllers/teacherController");
 
 const { createCourse, getCourses, updateCourse, deleteCourse } = require("../controllers/courseController");
@@ -52,6 +53,7 @@ router.delete("/assignments/:materiId", deleteAssignment);
 router.get("/dashboard-stats", getDashboardStats);
 router.get("/course-progress/:courseId", getCourseProgressStats);
 router.get("/students-monitor", getStudentProgress);
+router.get("/analytics/:studentId", getStudentAnalytics);
 
 // --- 6. GRADING SYSTEM (Tugas Coding/Flowchart) ---
 // Rute ini untuk list Sub-Bab yang ada tugasnya

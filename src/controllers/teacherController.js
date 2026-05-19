@@ -205,3 +205,71 @@ exports.getTestResults = async (req, res) => {
     res.status(500).json({ error: `Gagal mengambil data nilai ${testType}` });
   }
 };
+
+// teacherController.js
+
+exports.getStudentAnalytics = async (req, res) => {
+  const { studentId } = req.params;
+
+  try {
+      const query = `
+          SELECT 
+              m.id as materi_id,
+              m.title as materi_title,
+              mod.title as module_title,
+              m.learning_objectives as total_objectives,
+              ss.content->'achieved_objectives' as achieved_objectives,
+              ss.status as submission_status,
+              ss.updated_at as completed_at
+          FROM materi m
+          JOIN modules mod ON m.module_id = mod.id
+          LEFT JOIN student_submissions ss ON m.id = ss.materi_id AND ss.user_id = $1
+          ORDER BY mod.module_order ASC, m.order_number ASC;
+      `;
+
+      const result = await pool.query(query, [studentId]);
+
+      // Hitung ringkasan statistik untuk dashboard analitik
+      let totalIndicators = 0;
+      let totalAchieved = 0;
+
+      const analyticsData = result.rows.map(row => {
+          const total = Array.isArray(row.total_objectives) ? row.total_objectives.length : 0;
+          const achieved = Array.isArray(row.achieved_objectives) ? row.achieved_objectives.length : 0;
+          
+          totalIndicators += total;
+          totalAchieved += achieved;
+
+          return {
+              materi_id: row.materi_id,
+              materi_title: row.materi_title,
+              module_title: row.module_title,
+              status: row.submission_status || 'not_started',
+              progress: {
+                  total: total,
+                  achieved: achieved,
+                  percent: total > 0 ? Math.round((achieved / total) * 100) : 0
+              },
+              details: {
+                  all_indicators: row.total_objectives || [],
+                  achieved_indicators: row.achieved_objectives || []
+              },
+              completed_at: row.completed_at
+          };
+      });
+
+      res.json({
+          status: "success",
+          summary: {
+              total_materi: analyticsData.length,
+              materi_finished: analyticsData.filter(d => d.status === 'submitted' || d.status === 'graded').length,
+              overall_competency_percent: totalIndicators > 0 ? Math.round((totalAchieved / totalIndicators) * 100) : 0
+          },
+          data: analyticsData
+      });
+
+  } catch (err) {
+      console.error("ANALYTICS ERROR:", err.message);
+      res.status(500).json({ error: "Gagal memuat analitik siswa" });
+  }
+};
