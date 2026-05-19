@@ -26,7 +26,6 @@ exports.getCourseDetail = async (req, res) => {
 // 3. Ambil Course lengkap dengan Modul & Materi (JOIN SESUAI ERD)
 exports.getFullCourses = async (req, res) => {
   try {
-    // Gunakan query yang paling aman tanpa alias yang rumit dulu untuk testing
     const result = await pool.query(`
       SELECT 
         courses.id AS c_id, courses.title AS c_title, courses.instructor AS c_ins, 
@@ -35,6 +34,7 @@ exports.getFullCourses = async (req, res) => {
         materi.id AS mat_id, materi.title AS mat_title, materi.content AS mat_cont, 
         materi.video_url AS mat_vid, materi.type AS mat_type, 
         materi.has_reflection AS mat_ref, materi.reflection_question AS mat_ref_q,
+        materi.learning_objectives AS mat_obj,
         assignments.id AS as_id, assignments.instruction AS as_inst, 
         assignments.type AS as_type, assignments.starter_code AS as_start
       FROM courses
@@ -75,6 +75,16 @@ exports.getFullCourses = async (req, res) => {
         if (row.mat_id) {
           let materiExists = module.materi.find(mat => mat.id === row.mat_id);
           if (!materiExists) {
+            // 👈 2. PROSES DATA OBJECTIVES AGAR MENJADI ARRAY JSON
+            let objectives = [];
+            try {
+               // Jika datanya string (format Postgre native), kita parse atau kirim apa adanya
+               // Tapi karena kolomnya JSONB, biasanya library sudah otomatis jadi array/object.
+               objectives = row.mat_obj || []; 
+            } catch (e) {
+               objectives = [];
+            }
+
             module.materi.push({ 
               id: row.mat_id, 
               title: row.mat_title, 
@@ -83,6 +93,7 @@ exports.getFullCourses = async (req, res) => {
               type: row.mat_type,
               has_reflection: row.mat_ref,
               reflection_question: row.mat_ref_q,
+              learning_objectives: objectives,
               assignment: row.as_id ? { 
                 id: row.as_id, 
                 type: row.as_type,
@@ -105,6 +116,7 @@ exports.getFullCourses = async (req, res) => {
     res.status(500).json({ status: "error", message: err.message });
   }
 };
+
 
 // 4. Buat Course Baru
 exports.createCourse = async (req, res) => {
