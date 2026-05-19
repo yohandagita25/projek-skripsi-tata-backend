@@ -7,7 +7,7 @@ const authorizeRole = require("../middleware/roleMiddleware");
 // Import Controllers
 const { 
   getDashboardStats,
-  getClassCompetencyStats,,
+  getClassCompetencyStats,
   getCourseProgressStats, 
   getStudentProgress,
   getStudentAnalytics,
