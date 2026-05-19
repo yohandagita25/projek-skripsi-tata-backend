@@ -206,8 +206,6 @@ exports.getTestResults = async (req, res) => {
   }
 };
 
-// teacherController.js
-
 exports.getStudentAnalytics = async (req, res) => {
   const { studentId } = req.params;
 
@@ -218,7 +216,8 @@ exports.getStudentAnalytics = async (req, res) => {
               m.title as materi_title,
               mod.title as module_title,
               m.learning_objectives as total_objectives,
-              ss.content->'achieved_objectives' as achieved_objectives,
+              -- ✅ PERBAIKAN: Cast content ke jsonb dan gunakan COALESCE
+              COALESCE((ss.content::jsonb)->'achieved_objectives', '[]'::jsonb) as achieved_objectives,
               ss.status as submission_status,
               ss.updated_at as completed_at
           FROM materi m
@@ -229,16 +228,16 @@ exports.getStudentAnalytics = async (req, res) => {
 
       const result = await pool.query(query, [studentId]);
 
-      // Hitung ringkasan statistik untuk dashboard analitik
       let totalIndicators = 0;
       let totalAchieved = 0;
 
       const analyticsData = result.rows.map(row => {
-          const total = Array.isArray(row.total_objectives) ? row.total_objectives.length : 0;
-          const achieved = Array.isArray(row.achieved_objectives) ? row.achieved_objectives.length : 0;
+          // ✅ PERBAIKAN: Pastikan data adalah array (handle native postgres array format)
+          const totalArr = Array.isArray(row.total_objectives) ? row.total_objectives : [];
+          const achievedArr = Array.isArray(row.achieved_objectives) ? row.achieved_objectives : [];
           
-          totalIndicators += total;
-          totalAchieved += achieved;
+          totalIndicators += totalArr.length;
+          totalAchieved += achievedArr.length;
 
           return {
               materi_id: row.materi_id,
@@ -246,13 +245,13 @@ exports.getStudentAnalytics = async (req, res) => {
               module_title: row.module_title,
               status: row.submission_status || 'not_started',
               progress: {
-                  total: total,
-                  achieved: achieved,
-                  percent: total > 0 ? Math.round((achieved / total) * 100) : 0
+                  total: totalArr.length,
+                  achieved: achievedArr.length,
+                  percent: totalArr.length > 0 ? Math.round((achievedArr.length / totalArr.length) * 100) : 0
               },
               details: {
-                  all_indicators: row.total_objectives || [],
-                  achieved_indicators: row.achieved_objectives || []
+                  all_indicators: totalArr,
+                  achieved_indicators: achievedArr
               },
               completed_at: row.completed_at
           };
