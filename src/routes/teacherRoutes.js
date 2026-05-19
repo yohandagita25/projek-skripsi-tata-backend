@@ -6,7 +6,8 @@ const authorizeRole = require("../middleware/roleMiddleware");
 
 // Import Controllers
 const { 
-  getDashboardStats, 
+  getDashboardStats,
+  getClassCompetencyAnalytic,
   getCourseProgressStats, 
   getStudentProgress,
   getStudentAnalytics,
@@ -54,6 +55,7 @@ router.get("/dashboard-stats", getDashboardStats);
 router.get("/course-progress/:courseId", getCourseProgressStats);
 router.get("/students-monitor", getStudentProgress);
 router.get("/analytics/:studentId", getStudentAnalytics);
+router.get("/class-competency", getClassCompetencyAnalytic);
 
 
 // --- 6. GRADING SYSTEM (Tugas Coding/Flowchart) ---
