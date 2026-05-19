@@ -216,7 +216,6 @@ exports.getStudentAnalytics = async (req, res) => {
               m.title as materi_title,
               mod.title as module_title,
               m.learning_objectives as total_objectives,
-              -- ✅ PERBAIKAN: Cast content ke jsonb dan gunakan COALESCE
               COALESCE((ss.content::jsonb)->'achieved_objectives', '[]'::jsonb) as achieved_objectives,
               ss.status as submission_status,
               ss.updated_at as completed_at
