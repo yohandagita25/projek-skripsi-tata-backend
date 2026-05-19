@@ -279,22 +279,27 @@ exports.getClassCompetencyStats = async (req, res) => {
         SELECT 
           m.id as materi_id,
           m.title as materi_title,
-          -- Gunakan ARRAY_TO_JSON atau pastikan ini array sebelum di-unnest
-          unnest(m.learning_objectives) as indicator_name
+          jsonb_array_elements_text(m.learning_objectives::jsonb) as indicator_name
         FROM materi m
       ),
       achievements AS (
         SELECT 
           materi_id,
-          -- PERBAIKAN: Pastikan casting (::jsonb) dilakukan sebelum akses key
-          jsonb_array_elements_text(COALESCE((ss.content::jsonb)->'achieved_objectives', '[]'::jsonb)) as achieved_name
-        FROM student_submissions ss
+          jsonb_array_elements_text(
+            CASE 
+              WHEN jsonb_typeof(content::jsonb -> 'achieved_objectives') = 'array' 
+              THEN (content::jsonb -> 'achieved_objectives') 
+              ELSE '[]'::jsonb 
+            END
+          ) as achieved_name
+        FROM student_submissions
+        WHERE content IS NOT NULL
       )
       SELECT 
         i.materi_title,
         i.indicator_name,
-        COUNT(a.achieved_name) as total_students_understood,
-        (SELECT COUNT(id) FROM users WHERE role = 'student') as total_students
+        COUNT(a.achieved_name)::int as total_students_understood,
+        (SELECT COUNT(*)::int FROM users WHERE role = 'student') as total_students
       FROM indicators i
       LEFT JOIN achievements a ON i.materi_id = a.materi_id AND i.indicator_name = a.achieved_name
       GROUP BY i.materi_id, i.materi_title, i.indicator_name
@@ -302,13 +307,17 @@ exports.getClassCompetencyStats = async (req, res) => {
     `;
 
     const result = await pool.query(query);
-    res.json({
+    
+    return res.status(200).json({
       status: "success",
-      data: result.rows
+      data: result.rows || []
     });
+
   } catch (err) {
-    // Ini yang akan muncul di terminal Bapak
-    console.error("CLASS STATS ERROR:", err.message); 
-    res.status(500).json({ error: err.message });
+    console.error("CRITICAL ERROR CLASS STATS:", err.message);
+    return res.status(500).json({ 
+      status: "error",
+      message: err.message 
+    });
   }
 };
