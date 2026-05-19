@@ -294,16 +294,27 @@ exports.getClassCompetencyStats = async (req, res) => {
           ) as achieved_name
         FROM student_submissions
         WHERE content IS NOT NULL
+      ),
+      indicator_stats AS (
+        SELECT 
+          i.materi_id,
+          i.materi_title,
+          i.indicator_name,
+          (COUNT(a.achieved_name)::float / NULLIF((SELECT COUNT(*)::int FROM users WHERE role = 'student'), 0) * 100) as indicator_percentage
+        FROM indicators i
+        LEFT JOIN achievements a ON i.materi_id = a.materi_id AND i.indicator_name = a.achieved_name
+        GROUP BY i.materi_id, i.materi_title, i.indicator_name
       )
       SELECT 
-        i.materi_title,
-        i.indicator_name,
-        COUNT(a.achieved_name)::int as total_students_understood,
-        (SELECT COUNT(*)::int FROM users WHERE role = 'student') as total_students
-      FROM indicators i
-      LEFT JOIN achievements a ON i.materi_id = a.materi_id AND i.indicator_name = a.achieved_name
-      GROUP BY i.materi_id, i.materi_title, i.indicator_name
-      ORDER BY i.materi_id;
+        materi_title,
+        ROUND(AVG(indicator_percentage))::int as percentage,
+        jsonb_agg(jsonb_build_object(
+          'name', indicator_name,
+          'val', ROUND(indicator_percentage)::int
+        )) as indicators
+      FROM indicator_stats
+      GROUP BY materi_id, materi_title
+      ORDER BY materi_id;
     `;
 
     const result = await pool.query(query);
