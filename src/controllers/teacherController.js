@@ -274,39 +274,41 @@ exports.getStudentAnalytics = async (req, res) => {
 
 exports.getClassCompetencyStats = async (req, res) => {
   try {
-      const query = `
-          WITH indicators AS (
-              SELECT 
-                  m.id as materi_id,
-                  m.title as materi_title,
-                  unnest(m.learning_objectives) as indicator_name
-              FROM materi m
-          ),
-          achievements AS (
-              SELECT 
-                  materi_id,
-                  unnest(ARRAY(SELECT jsonb_array_elements_text(COALESCE(content->'achieved_objectives', '[]'::jsonb)))) as achieved_name
-              FROM student_submissions
-          )
-          SELECT 
-              i.materi_title,
-              i.indicator_name,
-              COUNT(a.achieved_name) as total_students_understood,
-              (SELECT COUNT(id) FROM users WHERE role = 'student') as total_students
-          FROM indicators i
-          LEFT JOIN achievements a ON i.materi_id = a.materi_id AND i.indicator_name = a.achieved_name
-          GROUP BY i.materi_id, i.materi_title, i.indicator_name
-          ORDER BY i.materi_id;
-      `;
+    const query = `
+      WITH indicators AS (
+        SELECT 
+          m.id as materi_id,
+          m.title as materi_title,
+          -- Gunakan ARRAY_TO_JSON atau pastikan ini array sebelum di-unnest
+          unnest(m.learning_objectives) as indicator_name
+        FROM materi m
+      ),
+      achievements AS (
+        SELECT 
+          materi_id,
+          -- PERBAIKAN: Pastikan casting (::jsonb) dilakukan sebelum akses key
+          jsonb_array_elements_text(COALESCE((ss.content::jsonb)->'achieved_objectives', '[]'::jsonb)) as achieved_name
+        FROM student_submissions ss
+      )
+      SELECT 
+        i.materi_title,
+        i.indicator_name,
+        COUNT(a.achieved_name) as total_students_understood,
+        (SELECT COUNT(id) FROM users WHERE role = 'student') as total_students
+      FROM indicators i
+      LEFT JOIN achievements a ON i.materi_id = a.materi_id AND i.indicator_name = a.achieved_name
+      GROUP BY i.materi_id, i.materi_title, i.indicator_name
+      ORDER BY i.materi_id;
+    `;
 
-      const result = await pool.query(query);
-      
-      res.json({
-          status: "success",
-          data: result.rows
-      });
+    const result = await pool.query(query);
+    res.json({
+      status: "success",
+      data: result.rows
+    });
   } catch (err) {
-      console.error("CLASS STATS ERROR:", err.message);
-      res.status(500).json({ error: "Gagal memuat statistik kelas" });
+    // Ini yang akan muncul di terminal Bapak
+    console.error("CLASS STATS ERROR:", err.message); 
+    res.status(500).json({ error: err.message });
   }
 };
